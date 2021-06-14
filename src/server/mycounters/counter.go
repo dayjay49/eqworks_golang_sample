@@ -1,4 +1,4 @@
-package counteruploader
+package mycounters
 
 import (
 	"fmt"

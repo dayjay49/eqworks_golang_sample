@@ -1,12 +1,11 @@
-package counteruploader
+package mycounters
 
 // Manager implements a counter uploader interface
-type UploadManager struct {
-	// channels
+type CounterManager struct {
 	errorChan		chan error
 	outToViewChan   chan *Counter
-	inFromViewChan	chan string
-	msInChan 		chan struct{}
+	InFromViewChan	chan string
+	MsInChan 		chan struct{}
 	msOutChan   	chan *MockStore
 
 	// related structs
@@ -15,12 +14,12 @@ type UploadManager struct {
 }
 
 // NewUploadManager creates a new counter uploader manager
-func NewUploadManager(conf *Config) *UploadManager {
-	m := &UploadManager {
+func NewCounterManager(conf *CounterConfig) *CounterManager {
+	m := &CounterManager {
 		errorChan: make(chan error),
 		outToViewChan: make(chan *Counter),
-		inFromViewChan: make(chan string),
-		msInChan: make(chan struct{}),
+		InFromViewChan: make(chan string),
+		MsInChan: make(chan struct{}),
 		msOutChan: make(chan *MockStore),
 		mockStore: NewMockStore(),
 		counter: NewCounter(conf.InitialContent),
@@ -29,9 +28,9 @@ func NewUploadManager(conf *Config) *UploadManager {
 }
 
 // GetUpdatedCounter is called from viewHandler to update randomized content value
-func (u *UploadManager) GetUpdatedCounter(content string) (*Counter, error) {
+func (u *CounterManager) GetUpdatedCounter(content string) (*Counter, error) {
 	go func() {
-		u.inFromViewChan <- content
+		u.InFromViewChan <- content
 	}()
 
 	// Await for the updated counter
@@ -44,7 +43,7 @@ func (u *UploadManager) GetUpdatedCounter(content string) (*Counter, error) {
 }
 
 // UpdateCounter is called when we need to modify the content of the counter then send it through channel
-func (u *UploadManager) UpdateCounter(content string) {
+func (u *CounterManager) UpdateCounter(content string) {
 	// change `counter`'s content value
 	u.counter.UpdateContent(content)
 
@@ -55,14 +54,14 @@ func (u *UploadManager) UpdateCounter(content string) {
 }
 
 // UploadToMockStore is called when we need to upload the counter every 5 seconds
-func (u *UploadManager) UploadToMockStore() {
+func (u *CounterManager) UploadToMockStore() {
 	u.mockStore.AddCounter(u.counter)
 }
 
 // GetMockStore is called from statsHandler to get mockstore of counters
-func (u *UploadManager) GetMockStore() (*MockStore, error) {
+func (u *CounterManager) GetMockStore() (*MockStore, error) {
 	go func() {
-		u.msInChan <- struct{}{}
+		u.MsInChan <- struct{}{}
 	}()
 
 	// Await for the mock store
@@ -74,7 +73,7 @@ func (u *UploadManager) GetMockStore() (*MockStore, error) {
 	}
 }
 
-func (u *UploadManager) SendMockStore() {
+func (u *CounterManager) SendMockStore() {
 	// send mock store to msOutChan
 	go func() {
 		u.msOutChan <- u.mockStore

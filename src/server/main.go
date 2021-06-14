@@ -8,7 +8,9 @@ import (
 	"strconv"
 	"time"
 
-	counteruploader "github.com/dayjay49/ws-product-golang-master/src/server/uploadCounters"
+	"github.com/dayjay49/ws-product-golang-master/src/server/mycounters"
+	"github.com/dayjay49/ws-product-golang-master/src/server/mywatcher"
+	"github.com/dayjay49/ws-product-golang-master/src/server/ratelimiter"
 )
 
 var (
@@ -29,24 +31,20 @@ func isAllowed() bool {
 	return true
 }
 
-// func uploadCounters() error {
-// 	return nil
-// }
-
 func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
 }
 
-func statsHandler(w http.ResponseWriter, r *http.Request, uploader counteruploader.CounterUploader) {
+func statsHandler(w http.ResponseWriter, r *http.Request, ci mycounters.CounterInterface) {
 	if !isAllowed() {
 		w.WriteHeader(429)
 		return
 	}
 
 	// GO GET EM!!
-	ms, err := uploader.GetMockStore()
+	ms, err := ci.GetMockStore()
 	checkErr(err)
 
 	// display counters
@@ -54,21 +52,21 @@ func statsHandler(w http.ResponseWriter, r *http.Request, uploader counterupload
 	for eventKey, eventValues := range ms.EventHistory {
 		fmt.Println(eventKey+" -------> "+"{views: "+strconv.Itoa(eventValues["views"])+
 		", clicks: "+strconv.Itoa(eventValues["clicks"])+"}")
-		
+
 		fmt.Fprint(w, eventKey+" -------> "+"{views: "+strconv.Itoa(eventValues["views"])+
 			", clicks: "+strconv.Itoa(eventValues["clicks"])+"}\n")
 	}
 	ms.Unlock()
 }
 
-func viewHandler(w http.ResponseWriter, r *http.Request, uploader counteruploader.CounterUploader) {
+func viewHandler(w http.ResponseWriter, r *http.Request, ci mycounters.CounterInterface) {
 	data = content[rand.Intn(len(content))]
 
 	// GO GET EM!!
-	c, err := uploader.GetUpdatedCounter(data)
+	counter, err := ci.GetUpdatedCounter(data)
 	checkErr(err)
 
-	c.IncrementView()
+	counter.IncrementView()
 
 	err = processRequest(r)
 	if err != nil {
@@ -79,26 +77,33 @@ func viewHandler(w http.ResponseWriter, r *http.Request, uploader counteruploade
 
 	// simulate random click call
 	if rand.Intn(100) < 50 {
-		c.IncrementClick()
+		counter.IncrementClick()
 	}
 }
 
 func main() {
 	// Running counter uploader concurrently (go routines inside the function)
-	uploader, err := counteruploader.NewMyCounterUploader(&counteruploader.Config{
-		CycleDuration: 3 * time.Second,
-		InitialContent: data,
-	})
+	counterInterface, rateLimitInterface, err := mywatcher.NewMyWatcher(
+		&mycounters.CounterConfig{
+			CycleDuration: 3 * time.Second,
+			InitialContent: data,
+		}, 
+		&ratelimiter.RateLimitConfig{
+			ActiveTokenLimit: 5,
+			FixedInterval: 15 * time.Second,
+		},
+	)
+
 	checkErr(err)
-
-	// fmt.Println(uploader, "----------------")
-
+	fmt.Println(counterInterface, "--------------COUNTER-------------")
+	fmt.Println(rateLimitInterface, "--------------RATE-LIMITER---------------")
+		
 	http.HandleFunc("/", welcomeHandler)
 	http.HandleFunc("/view/", func (w http.ResponseWriter, r *http.Request) {
-		viewHandler(w, r, uploader)
+		viewHandler(w, r, counterInterface)
 	})
 	http.HandleFunc("/stats/", func (w http.ResponseWriter, r *http.Request) {
-		statsHandler(w, r, uploader)
+		statsHandler(w, r, counterInterface)
 	})
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
