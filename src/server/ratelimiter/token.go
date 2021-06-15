@@ -15,23 +15,23 @@ type Token struct {
 	ID string
 
 	// The time at which the token was created
-	CreatedAt time.Time
+	createdAt time.Time
 
 	// Defines the min amount of time the token must live before being released
-	ExpiresAt time.Time
+	expiresAt time.Time
 }
 
 // NewToken creates a new token
 func NewToken() *Token {
 	return &Token{
 		ID:        ksuid.New().String(),
-		CreatedAt: time.Now().UTC(),
-		ExpiresAt: time.Time{}, // defaults to zero time
+		createdAt: time.Now().UTC(),
+		expiresAt: time.Time{}, // defaults to zero time
 	}
 }
 
 // IsExpired returns true if current time is greater than expiration time
 func (t *Token) IsExpired() bool {
 	now := time.Now().UTC()
-	return t.ExpiresAt.Before(now)
+	return t.expiresAt.Before(now)
 }

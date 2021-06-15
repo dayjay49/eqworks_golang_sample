@@ -1,7 +1,6 @@
 package mycounters
 
 import (
-	"fmt"
 	"sync"
 	"time"
 )
@@ -11,8 +10,6 @@ type Counter struct {
 	views  int
 	clicks int
 	content string
-	// eventKey time.Time
-	// eventValue map[string]int
 	createdAt time.Time
 	updatedAt time.Time
 }
@@ -33,7 +30,7 @@ func (c *Counter) UpdateContent(content string) {
 	c.Lock()
 	c.content = content
 	c.updatedAt = time.Now().UTC()
-	fmt.Println("UPDATED COUNTER CONTENT VALUE TO:", c.content)
+	// fmt.Println("UPDATED COUNTER CONTENT VALUE TO:", c.content)
 	c.Unlock()
 }
 

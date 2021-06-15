@@ -73,6 +73,7 @@ func (u *CounterManager) GetMockStore() (*MockStore, error) {
 	}
 }
 
+// SendMockStore is called to send the mock store to the handlers
 func (u *CounterManager) SendMockStore() {
 	// send mock store to msOutChan
 	go func() {

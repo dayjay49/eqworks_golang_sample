@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/dayjay49/ws-product-golang-master/src/server/mycounters"
-	"github.com/dayjay49/ws-product-golang-master/src/server/mywatcher"
 	"github.com/dayjay49/ws-product-golang-master/src/server/ratelimiter"
 )
 
@@ -18,51 +17,38 @@ var (
 	data = content[rand.Intn(len(content))]
 )
 
-func welcomeHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "Welcome to EQ Works 😎")
-}
+func welcomeHandler(w http.ResponseWriter, r *http.Request, ri ratelimiter.RateLimitInterface) {
+	// Acquire a rate limit token
+	token, isAllowed, err := ri.Acquire()
+	checkErr(err)
+	if token != nil {
+		fmt.Printf("Rate Limit Token acquired %s...\n", token.ID)
+	} 
 
-func processRequest(r *http.Request) error {
-	time.Sleep(time.Duration(rand.Int31n(50)) * time.Millisecond)
-	return nil
-}
-
-func isAllowed() bool {
-	return true
-}
-
-func checkErr(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-func statsHandler(w http.ResponseWriter, r *http.Request, ci mycounters.CounterInterface) {
-	if !isAllowed() {
+	if !isAllowed {
 		w.WriteHeader(429)
 		return
 	}
 
-	// GO GET EM!!
-	ms, err := ci.GetMockStore()
-	checkErr(err)
-
-	// display counters
-	ms.Lock()
-	for eventKey, eventValues := range ms.EventHistory {
-		fmt.Println(eventKey+" -------> "+"{views: "+strconv.Itoa(eventValues["views"])+
-		", clicks: "+strconv.Itoa(eventValues["clicks"])+"}")
-
-		fmt.Fprint(w, eventKey+" -------> "+"{views: "+strconv.Itoa(eventValues["views"])+
-			", clicks: "+strconv.Itoa(eventValues["clicks"])+"}\n")
-	}
-	ms.Unlock()
+	fmt.Fprint(w, "Welcome to EQ Works 😎")
 }
 
-func viewHandler(w http.ResponseWriter, r *http.Request, ci mycounters.CounterInterface) {
+func viewHandler(w http.ResponseWriter, r *http.Request, ri ratelimiter.RateLimitInterface, ci mycounters.CounterInterface) {
+	// Acquire a rate limit token
+	token, isAllowed, err := ri.Acquire()
+	checkErr(err)
+	if token != nil {
+		fmt.Printf("Rate Limit Token acquired %s...\n", token.ID)
+	} 
+	
+	if !isAllowed {
+		w.WriteHeader(429)
+		return
+	}
+	
 	data = content[rand.Intn(len(content))]
 
-	// GO GET EM!!
+	// Retrieve counter 
 	counter, err := ci.GetUpdatedCounter(data)
 	checkErr(err)
 
@@ -81,30 +67,72 @@ func viewHandler(w http.ResponseWriter, r *http.Request, ci mycounters.CounterIn
 	}
 }
 
+func statsHandler(w http.ResponseWriter, r *http.Request, ri ratelimiter.RateLimitInterface, ci mycounters.CounterInterface) {
+	// Acquire a rate limit token
+	token, isAllowed, err := ri.Acquire()
+	checkErr(err)
+	if token != nil {
+		fmt.Printf("Rate Limit Token acquired %s...\n", token.ID)
+	} 
+	
+	if !isAllowed {
+		w.WriteHeader(429)
+		return
+	}
+
+	// Retrieve the mock store
+	ms, err := ci.GetMockStore()
+	checkErr(err)
+
+	// display counters from the mock store
+	ms.Lock()
+	for eventKey, eventValues := range ms.EventHistory {
+		fmt.Fprint(w, eventKey+" -------> "+"{views: "+strconv.Itoa(eventValues["views"])+
+			", clicks: "+strconv.Itoa(eventValues["clicks"])+"}\n")
+	}
+	ms.Unlock()
+}
+
+func processRequest(r *http.Request) error {
+	time.Sleep(time.Duration(rand.Int31n(50)) * time.Millisecond)
+	return nil
+}
+
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func main() {
-	// Running counter uploader concurrently (go routines inside the function)
-	counterInterface, rateLimitInterface, err := mywatcher.NewMyWatcher(
+	// counter running concurrently with the website 
+	counterInterface, err := mycounters.NewMyCounter(
 		&mycounters.CounterConfig{
-			CycleDuration: 3 * time.Second,
+			CycleDuration: 5 * time.Second,
 			InitialContent: data,
-		}, 
-		&ratelimiter.RateLimitConfig{
-			ActiveTokenLimit: 5,
-			FixedInterval: 15 * time.Second,
 		},
 	)
-
 	checkErr(err)
-	fmt.Println(counterInterface, "--------------COUNTER-------------")
-	fmt.Println(rateLimitInterface, "--------------RATE-LIMITER---------------")
-		
-	http.HandleFunc("/", welcomeHandler)
+
+	// rate limiter running concurrently with the website 
+	rateLimitInterface, err := ratelimiter.NewMyRateLimiter(
+		&ratelimiter.RateLimitConfig{
+			FixedInterval: 5 * time.Second,
+			ActiveTokenLimit: 5,
+		},
+	)
+	checkErr(err)
+	
+	http.HandleFunc("/", func (w http.ResponseWriter, r *http.Request) {
+		welcomeHandler(w,r, rateLimitInterface)
+	})
 	http.HandleFunc("/view/", func (w http.ResponseWriter, r *http.Request) {
-		viewHandler(w, r, counterInterface)
+		viewHandler(w,r, rateLimitInterface, counterInterface)
 	})
 	http.HandleFunc("/stats/", func (w http.ResponseWriter, r *http.Request) {
-		statsHandler(w, r, counterInterface)
+		statsHandler(w,r, rateLimitInterface, counterInterface)
 	})
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Println("Listening on :1995...")
+	log.Fatal(http.ListenAndServe(":1995", nil))
 }
