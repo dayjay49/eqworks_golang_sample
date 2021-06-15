@@ -96,7 +96,7 @@ func checkErr(err error) {
 }
 
 func main() {
-	// counter running concurrently with the website 
+	// counter uploaded every `CycleDuration` seconds concurrently with the website 
 	counterInterface, err := mycounters.NewMyCounter(
 		&mycounters.CounterConfig{
 			CycleDuration: 5 * time.Second,
@@ -105,11 +105,11 @@ func main() {
 	)
 	checkErr(err)
 
-	// rate limiter running concurrently with the website 
+	// rate limiter (using the Fixed Window Interval Algorithm) running concurrently with the website 
 	rateLimitInterface, err := ratelimiter.NewMyRateLimiter(
 		&ratelimiter.RateLimitConfig{
 			FixedInterval: 5 * time.Second,
-			ActiveTokenLimit: 5,
+			ActiveTokenLimit: 10,
 		},
 	)
 	checkErr(err)
