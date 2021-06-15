@@ -2,7 +2,6 @@ package ratelimiter
 
 import (
 	"errors"
-	"fmt"
 	"log"
 )
 
@@ -106,8 +105,8 @@ func (r *RateLimitManager) GenerateToken() {
 }
 
 func (r *RateLimitManager) isLimitExceeded() bool {
-	fmt.Println("The number of active tokens is:", len(r.activeTokens))
-	fmt.Println("The limit is:", r.activeTokenLimit)
+	// fmt.Println("The number of active tokens is:", len(r.activeTokens))
+	// fmt.Println("The limit is:", r.activeTokenLimit)
 	return len(r.activeTokens) >= r.activeTokenLimit
 }
 

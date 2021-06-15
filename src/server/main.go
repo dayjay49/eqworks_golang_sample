@@ -18,12 +18,9 @@ var (
 )
 
 func welcomeHandler(w http.ResponseWriter, r *http.Request, ri ratelimiter.RateLimitInterface) {
-	// Acquire a rate limit token
-	token, isAllowed, err := ri.Acquire()
+	// Acquire a rate limit token and see if more requests are allowed or not
+	_, isAllowed, err := ri.Acquire()
 	checkErr(err)
-	if token != nil {
-		fmt.Printf("Rate Limit Token acquired %s...\n", token.ID)
-	} 
 
 	if !isAllowed {
 		w.WriteHeader(429)
@@ -34,12 +31,9 @@ func welcomeHandler(w http.ResponseWriter, r *http.Request, ri ratelimiter.RateL
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request, ri ratelimiter.RateLimitInterface, ci mycounters.CounterInterface) {
-	// Acquire a rate limit token
-	token, isAllowed, err := ri.Acquire()
+	// Acquire a rate limit token and see if more requests are allowed or not
+	_, isAllowed, err := ri.Acquire()
 	checkErr(err)
-	if token != nil {
-		fmt.Printf("Rate Limit Token acquired %s...\n", token.ID)
-	} 
 	
 	if !isAllowed {
 		w.WriteHeader(429)
@@ -68,12 +62,9 @@ func viewHandler(w http.ResponseWriter, r *http.Request, ri ratelimiter.RateLimi
 }
 
 func statsHandler(w http.ResponseWriter, r *http.Request, ri ratelimiter.RateLimitInterface, ci mycounters.CounterInterface) {
-	// Acquire a rate limit token
-	token, isAllowed, err := ri.Acquire()
+	// Acquire a rate limit token and see if more requests are allowed or not
+	_, isAllowed, err := ri.Acquire()
 	checkErr(err)
-	if token != nil {
-		fmt.Printf("Rate Limit Token acquired %s...\n", token.ID)
-	} 
 	
 	if !isAllowed {
 		w.WriteHeader(429)
@@ -132,7 +123,7 @@ func main() {
 	http.HandleFunc("/stats/", func (w http.ResponseWriter, r *http.Request) {
 		statsHandler(w,r, rateLimitInterface, counterInterface)
 	})
-
+	
 	log.Println("Listening on :1995...")
 	log.Fatal(http.ListenAndServe(":1995", nil))
 }
