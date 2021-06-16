@@ -14,7 +14,8 @@ type RateLimitManager struct {
 	InReqChan chan bool
 	outReqChan chan bool
 	neededTokensCount int
-	activeTokens map[string]*Token
+	// activeTokens map[string]*Token
+	activeTokens *ActiveTokens
 	activeTokenLimit int
 	makeToken	tokenFactory
 	isAllowed *MoreReqAllowed
@@ -30,7 +31,8 @@ func NewRateLimitManager(conf *RateLimitConfig) *RateLimitManager {
 		InReqChan: make(chan bool),
 		outReqChan: make(chan bool),
 		neededTokensCount: 0,
-		activeTokens: make(map[string]*Token),
+		// activeTokens: make(map[string]*Token),
+		activeTokens: NewActiveTokens(),
 		activeTokenLimit: conf.ActiveTokenLimit,
 		makeToken:	NewToken,
 		isAllowed: NewMoreReqAllowed(),
@@ -96,7 +98,8 @@ func (r *RateLimitManager) GenerateToken() {
 	token := r.makeToken()
 
 	// Add token to active map
-	r.activeTokens[token.ID] = token
+	r.activeTokens.AddActiveToken(token)
+	// r.activeTokens.Dict[token.ID] = token
 
 	// send token to outChan
 	go func() {
@@ -107,7 +110,7 @@ func (r *RateLimitManager) GenerateToken() {
 func (r *RateLimitManager) isLimitExceeded() bool {
 	// fmt.Println("The number of active tokens is:", len(r.activeTokens))
 	// fmt.Println("The limit is:", r.activeTokenLimit)
-	return len(r.activeTokens) >= r.activeTokenLimit
+	return len(r.activeTokens.GetActiveTokenMap()) >= r.activeTokenLimit
 }
 
 func (r *RateLimitManager) ReleaseTokenFromActiveTokenMap(token *Token) {
@@ -116,13 +119,14 @@ func (r *RateLimitManager) ReleaseTokenFromActiveTokenMap(token *Token) {
 		return
 	}
 
-	if _, ok := r.activeTokens[token.ID]; !ok {
+	if _, ok := r.activeTokens.GetActiveTokenMap()[token.ID]; !ok {
 		log.Printf("unable to release token %s - not in use", token.ID)
 		return
 	}
 
 	// Delete from map
-	delete(r.activeTokens, token.ID)
+	// delete(r.activeTokens.Dict, token.ID)
+	r.activeTokens.RemoveActiveToken(token)
 
 	// process anything waiting for a rate limit
 	if r.awaitingToken() {
@@ -134,13 +138,15 @@ func (r *RateLimitManager) ReleaseTokenFromActiveTokenMap(token *Token) {
 // loops over active tokens and releases any that are expired
 // for the FixedWindowRateLimiter Algorithm
 func (r *RateLimitManager) ReleaseExpiredTokens() {
-	for _, token := range r.activeTokens {
+	r.activeTokens.Lock()
+	for _, token := range r.activeTokens.GetActiveTokenMap() {
 		if token.IsExpired() {
 			go func(t *Token) {
 				r.ReleaseChan <- t
 			}(token)
 		}
 	}
+	r.activeTokens.Unlock()
 }
 
 // SendIsAllowedValue sends the `False` value to the handlers 

@@ -21,6 +21,7 @@ func welcomeHandler(w http.ResponseWriter, r *http.Request, ri ratelimiter.RateL
 	// Acquire a rate limit token and see if more requests are allowed or not
 	_, isAllowed, err := ri.Acquire()
 	checkErr(err)
+	// fmt.Println(isAllowed)
 
 	if !isAllowed {
 		w.WriteHeader(429)
@@ -34,6 +35,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request, ri ratelimiter.RateLimi
 	// Acquire a rate limit token and see if more requests are allowed or not
 	_, isAllowed, err := ri.Acquire()
 	checkErr(err)
+	// fmt.Println(isAllowed)
 	
 	if !isAllowed {
 		w.WriteHeader(429)
@@ -65,6 +67,7 @@ func statsHandler(w http.ResponseWriter, r *http.Request, ri ratelimiter.RateLim
 	// Acquire a rate limit token and see if more requests are allowed or not
 	_, isAllowed, err := ri.Acquire()
 	checkErr(err)
+	// fmt.Println(isAllowed)
 	
 	if !isAllowed {
 		w.WriteHeader(429)
@@ -108,8 +111,8 @@ func main() {
 	// rate limiter (using the Fixed Window Interval Algorithm) running concurrently with the website 
 	rateLimitInterface, err := ratelimiter.NewMyRateLimiter(
 		&ratelimiter.RateLimitConfig{
-			FixedInterval: 5 * time.Second,
-			ActiveTokenLimit: 10,
+			FixedInterval: 3 * time.Second,
+			ActiveTokenLimit: 5,
 		},
 	)
 	checkErr(err)

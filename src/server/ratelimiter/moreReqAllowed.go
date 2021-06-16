@@ -20,6 +20,6 @@ func NewMoreReqAllowed() *MoreReqAllowed {
 func (a *MoreReqAllowed) disallowMoreRequests() {
 	a.Lock()
 	a.value = false
-	a.Unlock()
 	fmt.Println("-----DISALLOWING ANY MORE REQUESTS UNTIL NEXT WINDOW-----")
+	a.Unlock()
 }
